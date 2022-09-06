@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -5,7 +6,7 @@ from torch.distributions.normal import Normal
 
 
 class QNet(nn.Module):  # `nn.Module` is a PyTorch module for neural network
-    def __init__(self, dims: [int], state_dim: int, action_dim: int):
+    def __init__(self, dims: List[int], state_dim: int, action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim, *dims, action_dim])
         self.explore_rate = None
@@ -14,7 +15,7 @@ class QNet(nn.Module):  # `nn.Module` is a PyTorch module for neural network
     def forward(self, state: Tensor) -> Tensor:
         return self.net(state)  # Q values for multiple actions
 
-    def get_action(self, state: Tensor) -> Tensor:  # return the index [int] of discrete action for exploration
+    def get_action(self, state: Tensor) -> Tensor:  # return the index List[int] of discrete action for exploration
         if self.explore_rate < torch.rand(1):
             action = self.net(state).argmax(dim=1, keepdim=True)
         else:
@@ -23,7 +24,7 @@ class QNet(nn.Module):  # `nn.Module` is a PyTorch module for neural network
 
 
 class Actor(nn.Module):
-    def __init__(self, dims: [int], state_dim: int, action_dim: int):
+    def __init__(self, dims: List[int], state_dim: int, action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim, *dims, action_dim])
         self.explore_noise_std = None  # standard deviation of exploration action noise
@@ -40,7 +41,7 @@ class Actor(nn.Module):
 
 
 class Critic(nn.Module):
-    def __init__(self, dims: [int], state_dim: int, action_dim: int):
+    def __init__(self, dims: List[int], state_dim: int, action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim + action_dim, *dims, 1])
 
@@ -49,15 +50,15 @@ class Critic(nn.Module):
 
 
 class ActorPPO(nn.Module):
-    def __init__(self, dims: [int], state_dim: int, action_dim: int):
+    def __init__(self, dims: List[int], state_dim: int, action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim, *dims, action_dim])
-        self.action_std_log = nn.Parameter(torch.zeros((1, action_dim)), requires_grad=True)  # trainable parameter
+        self.action_std_log = nn.parameter.Parameter(torch.zeros((1, action_dim)), requires_grad=True)  # trainable parameter
 
     def forward(self, state: Tensor) -> Tensor:
         return self.net(state).tanh()  # action.tanh()
 
-    def get_action(self, state: Tensor) -> (Tensor, Tensor):  # for exploration
+    def get_action(self, state: Tensor) -> Tuple[Tensor, Tensor]:  # for exploration
         action_avg = self.net(state)
         action_std = self.action_std_log.exp()
 
@@ -66,7 +67,7 @@ class ActorPPO(nn.Module):
         logprob = dist.log_prob(action).sum(1)
         return action, logprob
 
-    def get_logprob_entropy(self, state: Tensor, action: Tensor) -> (Tensor, Tensor):
+    def get_logprob_entropy(self, state: Tensor, action: Tensor) -> Tuple[Tensor, Tensor]:
         action_avg = self.net(state)
         action_std = self.action_std_log.exp()
 
@@ -81,7 +82,7 @@ class ActorPPO(nn.Module):
 
 
 class CriticPPO(nn.Module):
-    def __init__(self, dims: [int], state_dim: int, _action_dim: int):
+    def __init__(self, dims: List[int], state_dim: int, _action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim, *dims, 1])
 
@@ -89,7 +90,7 @@ class CriticPPO(nn.Module):
         return self.net(state)  # advantage value
 
 
-def build_mlp(dims: [int]) -> nn.Sequential:  # MLP (MultiLayer Perceptron)
+def build_mlp(dims: List[int]) -> nn.Sequential:  # MLP (MultiLayer Perceptron)
     net_list = []
     for i in range(len(dims) - 1):
         net_list.extend([nn.Linear(dims[i], dims[i + 1]), nn.ReLU()])
