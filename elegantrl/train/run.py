@@ -1,3 +1,4 @@
+from curses import noecho
 import multiprocessing as mp
 import os
 import time
@@ -88,7 +89,8 @@ def train_and_evaluate(args):
     buffer = init_buffer(args, gpu_id)
     evaluator = init_evaluator(args, gpu_id)
 
-    agent.state = env.reset()
+    if env is not None:
+        agent.state = env.reset()
     if args.if_off_policy:
         trajectory = agent.explore_env(env, args.num_seed_steps * args.num_steps_per_episode)
         buffer.update_buffer(trajectory)

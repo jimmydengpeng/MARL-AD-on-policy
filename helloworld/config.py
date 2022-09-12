@@ -2,10 +2,10 @@ import os
 import gym
 import torch
 import numpy as np
-
+from typing import Callable, Dict, Optional
 
 class Config:
-    def __init__(self, agent_class=None, env_class=None, env_args=None):
+    def __init__(self, agent_class: Optional[Callable] = None, env_class: Optional[Callable] = None, env_args: Optional[Dict] = None):
         self.env_class = env_class  # env = env_class(**env_args)
         self.env_args = env_args  # env = env_class(**env_args)
 
@@ -96,10 +96,10 @@ def get_gym_env_args(env, if_print: bool) -> dict:
         state_shape = env.observation_space.shape
         state_dim = state_shape[0] if len(state_shape) == 1 else state_shape  # sometimes state_dim is a list
 
-        if_discrete = isinstance(env.action_space, gym.spaces.Discrete)
+        if_discrete = isinstance(env.action_space, gym.spaces.Discrete)  # type: ignore
         if if_discrete:  # make sure it is discrete action space
             action_dim = env.action_space.n
-        elif isinstance(env.action_space, gym.spaces.Box):  # make sure it is continuous action space
+        elif isinstance(env.action_space, gym.spaces.Box):  # type: ignore # make sure it is continuous action space
             action_dim = env.action_space.shape[0]
             if any(env.action_space.high - 1):
                 print('WARNING: env.action_space.high', env.action_space.high)
@@ -133,13 +133,33 @@ def kwargs_filter(function, kwargs: dict) -> dict:
     return {key: kwargs[key] for key in common_args}  # filtered kwargs
 
 
-def build_env(env_class=None, env_args=None):
+def build_env(env_class: Optional[Callable], env_args: Optional[Dict]):
+    assert env_class
+    assert env_args
     if env_class.__module__ == 'gym.envs.registration':  # special rule
+        print(">>> env_class.__module__ == gym.envs.registration")
         import gym
         gym.logger.set_level(40)  # Block warning
         env = env_class(id=env_args['env_name'])
     else:
+        print(">>> else")
         env = env_class(**kwargs_filter(env_class.__init__, env_args.copy()))
+
     for attr_str in ('env_name', 'state_dim', 'action_dim', 'if_discrete'):
         setattr(env, attr_str, env_args[attr_str])
     return env
+
+
+if __name__ == "__main__":
+    from agent import AgentPPO
+    env_args = {
+        'env_name': 'LunarLanderContinuous-v2',
+        'state_dim': 8,
+        'action_dim': 2,
+        'if_discrete': False
+    }
+    args = Config(agent_class=AgentPPO, env_class=gym.make, env_args=env_args)
+    args.attr1 = 123
+    print(args.attr1)
+    args.attr1 = 456
+    print(args.attr1)

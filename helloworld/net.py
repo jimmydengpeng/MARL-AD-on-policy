@@ -1,3 +1,4 @@
+from codecs import ascii_encode
 from typing import List, Tuple
 import torch
 import torch.nn as nn
@@ -27,7 +28,7 @@ class Actor(nn.Module):
     def __init__(self, dims: List[int], state_dim: int, action_dim: int):
         super().__init__()
         self.net = build_mlp(dims=[state_dim, *dims, action_dim])
-        self.explore_noise_std = None  # standard deviation of exploration action noise
+        self.explore_noise_std = torch.tensor([1.0]) # standard deviation of exploration action noise 高斯分布标准差
 
     def forward(self, state: Tensor) -> Tensor:
         action = self.net(state)
@@ -96,3 +97,24 @@ def build_mlp(dims: List[int]) -> nn.Sequential:  # MLP (MultiLayer Perceptron)
         net_list.extend([nn.Linear(dims[i], dims[i + 1]), nn.ReLU()])
     del net_list[-1]  # remove the activation of output layer
     return nn.Sequential(*net_list)
+
+
+""" TESTS """
+def test_hello():
+    assert 1 == 1
+
+def test_build_mlp():
+    mlp = build_mlp(dims=[4,16,2])
+    print(mlp)
+    assert isinstance(mlp, nn.Sequential)
+
+def test_Actor():
+    actor = Actor(dims=[4, 12, 2], state_dim=4, action_dim=2)
+    state = torch.randn(4)
+    action = actor.get_action(state)
+    assert isinstance(action, torch.Tensor)
+    assert action.shape[0] == 2
+
+
+if __name__ == "__main__":
+    pass

@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import torch
 from copy import deepcopy
 from torch import Tensor
@@ -8,7 +9,7 @@ from config import Config
 
 
 class AgentBase:
-    def __init__(self, net_dims: [int], state_dim: int, action_dim: int, gpu_id: int = 0, args: Config = Config()):
+    def __init__(self, net_dims: List[int], state_dim: int, action_dim: int, gpu_id: int = 0, args: Config = Config()):
         self.state_dim = state_dim
         self.action_dim = action_dim
 
@@ -59,7 +60,7 @@ class AgentDQN(AgentBase):
         self.act.explore_rate = getattr(args, "explore_rate", 0.25)  # set for `self.act.get_action()`
         # the probability of choosing action randomly in epsilon-greedy
 
-    def explore_env(self, env, horizon_len: int, if_random: bool = False) -> [Tensor]:
+    def explore_env(self, env, horizon_len: int, if_random: bool = False) -> List[Tensor]:
         states = torch.zeros((horizon_len, self.state_dim), dtype=torch.float32).to(self.device)
         actions = torch.zeros((horizon_len, 1), dtype=torch.int32).to(self.device)
         rewards = torch.ones(horizon_len, dtype=torch.float32).to(self.device)
@@ -125,7 +126,7 @@ class AgentDDPG(AgentBase):
 
         self.act.explore_noise_std = getattr(args, 'explore_noise', 0.1)  # set for `self.act.get_action()`
 
-    def explore_env(self, env, horizon_len: int, if_random: bool = False) -> [Tensor]:
+    def explore_env(self, env, horizon_len: int, if_random: bool = False) -> List[Tensor]:
         states = torch.zeros((horizon_len, self.state_dim), dtype=torch.float32).to(self.device)
         actions = torch.zeros((horizon_len, self.action_dim), dtype=torch.int32).to(self.device)
         rewards = torch.zeros(horizon_len, dtype=torch.float32).to(self.device)
@@ -200,7 +201,7 @@ class AgentPPO(AgentBase):
         self.lambda_entropy = getattr(args, "lambda_entropy", 0.01)  # could be 0.00~0.10
         self.lambda_entropy = torch.tensor(self.lambda_entropy, dtype=torch.float32, device=self.device)
 
-    def explore_env(self, env, horizon_len: int) -> [Tensor]:
+    def explore_env(self, env, horizon_len: int) -> List[Tensor]:
         states = torch.zeros((horizon_len, self.state_dim), dtype=torch.float32).to(self.device)
         actions = torch.zeros((horizon_len, self.action_dim), dtype=torch.float32).to(self.device)
         logprobs = torch.zeros(horizon_len, dtype=torch.float32).to(self.device)
@@ -311,7 +312,7 @@ class ReplayBuffer:  # for off-policy
         self.rewards = torch.empty((max_size, 1), dtype=torch.float32, device=self.device)
         self.undones = torch.empty((max_size, 1), dtype=torch.float32, device=self.device)
 
-    def update(self, items: [Tensor]):
+    def update(self, items: List[Tensor]):
         states, actions, rewards, undones = items
         p = self.p + rewards.shape[0]  # pointer
         if p > self.max_size:
@@ -341,10 +342,10 @@ class ReplayBuffer:  # for off-policy
         self.p = p
         self.cur_size = self.max_size if self.if_full else self.p
 
-    def sample(self, batch_size: int) -> [Tensor]:
+    def sample(self, batch_size: int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]:
         indices = torch.randint(self.cur_size - 1, size=(batch_size,), requires_grad=False)
         return (self.states[indices],
                 self.actions[indices],
                 self.rewards[indices],
                 self.undones[indices],
-                self.states[indices + 1],)  # next state
+                self.states[indices + 1])  # next state

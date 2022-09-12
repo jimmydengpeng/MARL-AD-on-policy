@@ -1,14 +1,17 @@
+import imp
 import os
+from typing import Callable, Optional
 import torch
 import numpy as np
 from copy import deepcopy
 from pprint import pprint
+from utils import Color, WarnLevel, colorize, debug
 
 '''config for agent'''
 
 
 class Arguments:
-    def __init__(self, agent_class=None, env=None, env_func=None, env_args: dict = None):
+    def __init__(self, agent_class: Callable, env=None, env_func=None, env_args: Optional[dict] = None):
         self.env = env  # the environment for training
         self.env_func = env_func  # env = env_func(*env_args)
         self.env_args = env_args  # env = env_func(*env_args)
@@ -25,6 +28,7 @@ class Arguments:
         self.net_dim = 2 ** 8  # the network width
         self.num_layer = 3  # layer number of MLP (Multi-layer perception, `assert layer_num>=2`)
         self.horizon_len = 1  # number of steps per exploration
+        self.if_off_policy: bool = self.if_off_policy() #type: ignore # agent is on-policy or off-policy
         if self.if_off_policy:  # off-policy
             self.max_memo = 2 ** 21  # capacity of replay buffer, 2 ** 21 ~= 2e6
             self.batch_size = self.net_dim  # num of transitions sampled from replay buffer.
@@ -47,7 +51,6 @@ class Arguments:
         self.learning_rate = 2 ** -15  # 2 ** -15 ~= 3e-5
         self.soft_update_tau = 2 ** -8  # 2 ** -8 ~= 5e-3
         self.clip_grad_norm = 3.0  # 0.1 ~ 4.0, clip the gradient after normalization
-        self.if_off_policy = self.if_off_policy()  # agent is on-policy or off-policy
         self.if_use_old_traj = False  # save old data to splice and get a complete trajectory (for vector env)
 
         '''Arguments for device'''
@@ -91,6 +94,9 @@ class Arguments:
             print(f"| Arguments Keep cwd: {self.cwd}")
         os.makedirs(self.cwd, exist_ok=True)
 
+        if self.env == None:
+            self.env = build_env(self.env, self.env_func, self.env_args)
+
     def update_attr(self, attr: str):
         try:
             attribute_value = getattr(self.env, attr) if self.env_args is None else self.env_args[attr]
@@ -99,7 +105,7 @@ class Arguments:
             attribute_value = None
         return attribute_value
 
-    def if_off_policy(self) -> bool:
+    def if_off_policy(self) -> bool: #type: ignore
         name = self.agent_class.__name__
         if_off_policy = all((name.find('PPO') == -1, name.find('A2C') == -1))
         return if_off_policy
@@ -203,16 +209,25 @@ def kwargs_filter(func, kwargs: dict):  # [ElegantRL.2021.12.12]
     return filtered_kwargs
 
 
-def build_env(env=None, env_func=None, env_args=None):  # [ElegantRL.2021.12.12]
+def build_env(env=None, env_func: Optional[Callable] = None, env_args: Optional[dict] = None):  # [ElegantRL.2021.12.12]
     if env is not None:
+        # print(colorize(">>>"), colorize("env is not None, deepcopy...", Color.RED, bold=True))
+        debug("env is not None, deepcopy...", WarnLevel.WARNING)
         env = deepcopy(env)
-    elif env_func.__module__ == 'gym.envs.registration':
+
+    elif env_func is not None \
+     and env_args is not None \
+     and env_func.__module__ == 'gym.envs.registration':
+               # .__module__ : 表示当前操作的对象（的类定义在）在那个模块
+        print(colorize(">>> using", bold=True), colorize("env_func()", Color.RED), colorize("initializing env..."))
         import gym
         gym.logger.set_level(40)  # Block warning
         env = env_func(id=env_args['env_name'])
     else:
+        debug("using kwargs_filter...")
         env = env_func(**kwargs_filter(env_func.__init__, env_args.copy()))
 
+    debug("setattr for env...")
     for attr_str in ('state_dim', 'action_dim', 'max_step', 'if_discrete', 'target_return'):
         if (not hasattr(env, attr_str)) and (attr_str in env_args):
             setattr(env, attr_str, env_args[attr_str])

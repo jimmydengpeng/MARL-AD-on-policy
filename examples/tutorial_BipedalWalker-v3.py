@@ -26,7 +26,7 @@ args.eval_times = 2 ** 4
 
 if __name__ == '__main__':
     flag = "SingleProcess"
-
+    # flag = "MultiProcess"
     if flag == "SingleProcess":
         args.learner_gpus = 0
         train_and_evaluate(args)

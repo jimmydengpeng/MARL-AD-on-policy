@@ -9,10 +9,15 @@ from agent import ReplayBuffer
 def train_agent(args: Config):
     args.init_before_training()
 
+    print(">>> enter build_env")
     env = build_env(args.env_class, args.env_args)
+    print(">>> out build_env")
+    assert args.agent_class
+
     agent = args.agent_class(args.net_dims, args.state_dim, args.action_dim, gpu_id=args.gpu_id, args=args)
     agent.states = env.reset()[np.newaxis, :]
 
+    assert args.cwd
     evaluator = Evaluator(eval_env=build_env(args.env_class, args.env_args),
                           eval_per_step=args.eval_per_step,
                           eval_times=args.eval_times,

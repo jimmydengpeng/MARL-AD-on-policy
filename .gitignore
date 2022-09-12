@@ -16,3 +16,9 @@ runs/
 **/.vscode
 # JetBrains folder
 .idea/
+
+**/build/
+.pytest_cache/
+docs/
+elegantrl/envs/
+**/.DS_Store

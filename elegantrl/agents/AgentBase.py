@@ -285,7 +285,7 @@ class AgentBase:
         # assert len(buf_items[0][0]) == self.env_num
 
         '''stack items'''
-        traj_state = torch.stack(traj_list1[0])
+        traj_state = torch.stack(traj_list1[0]) #TODO
         traj_action = torch.stack(traj_list1[3])
 
         if len(traj_action.shape) == 2:
